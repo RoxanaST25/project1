@@ -2,43 +2,88 @@ from flask import render_template ,redirect, session, request
 from flask_app import app
 from flask_app.models.score import Score
 from flask_app.models.user import User
+from flask_app.models.score import QuestionList
 
 
-@app.route('/paintings/new')
-def nav_add_painting():
-    if 'user_id' not in session:
-        return redirect('/logout')
-    data = {
-        "id":session['user_id']
-    }
-    x = User.get_user(data)
-    return render_template('add_painting.html',user=x)
-
-@app.route('/paintings')
-def paintings():
+@app.route('/scores')
+def scores():
     if 'user_id' not in session:
         return redirect('/logout')
     data ={
         'id': session['user_id']
     }
-    x = User.get_user(data)
-    d = Painting.get_all()
-    usrname = x.first_name + " " + x.last_name
-    return render_template("paintings.html",user=x,painting=d, username=usrname )
+    d = Score.get_all()
+    # usrname = x.first_name
+    print("Session UserID: ", session['user_id'])
+    for x in d:
+        print("user ", x.user_id)
+    return render_template("scores.html",user=session['user_id'],scores=d)
 
-@app.route('/show/<int:id>')
-def show(id):
+@app.route('/questions/<int:index>')
+def questions(index):
     if 'user_id' not in session:
         return redirect('/logout')
-    painting_data = {
-        "id":id
-    }
-    data = {
-        "id":session['user_id']
-    }
-    x = Painting.get_painting(painting_data)
-    f = User.get_user(data)
-    return render_template("show.html",painting=x ,user=f)
+
+    question = QuestionList().questions[index]
+    return render_template('questions.html', index = index, question=question)
+
+@app.route('/selected/<int:index>/<int:answer>',methods=['POST'])
+def selected(index,answer):
+    if 'user_id' not in session:
+        return redirect('/logout')
+    if not Score.validate_option(request.form):
+        return redirect('/questions/' + str(index))
+    print(request.form)
+
+    correct = False
+
+    if answer == 0:
+        #check for option0
+        if "option0" in request.form.keys():
+            correct = True
+    elif answer == 1:
+        #option1
+        if "option1" in request.form.keys():
+            correct = True
+    else:
+        #option2
+        if "option2" in request.form.keys():
+            correct = True
+
+    if correct == True:
+        if "score" in session.keys():
+            session["score"] = session["score"]+1
+        else:
+            session["score"] = 1
+
+    print(session)
+
+    if index == 4:
+        # exit
+        if "score" in session.keys():
+            result = session["score"]
+            #save score
+            data = {
+                "score": result,
+                "users_id" : session["user_id"]
+            }
+            Score.save(data)
+        else:
+            #score is 0
+            data = {
+                "score": 0,
+                "users_id" : session["user_id"]
+            }
+            Score.save(data)
+        print("Session Before: ", session)
+        session.pop('score', None)
+        print("Session After: ", session)
+        return redirect('/scores')
+    
+    index = index+1
+    redirection = '/questions/' + str(index)
+
+    return redirect(redirection)
 
 @app.route('/delete/<int:id>')
 def delete(id):
@@ -47,57 +92,5 @@ def delete(id):
     data = {
         "id":id
     }
-    Painting.delete(data)
-    return redirect('/paintings')
-
-
-@app.route('/create_painting',methods=['POST'])
-def create_painting():
-    if 'user_id' not in session:
-        return redirect('/logout')
-    if not Painting.validate_painting(request.form):
-        return redirect('/paintings/new')
-
-    data ={
-        'id': session['user_id']
-    }
-    x = User.get_user(data)
-    paintedBy = x.first_name + " " + x.last_name
-    data = {
-        "title": request.form["title"],
-        "description": request.form["description"],
-        "price": request.form["price"],
-        "painted_by": paintedBy,
-        "user_id": session["user_id"]
-    }
-    Painting.save(data)
-    return redirect('/paintings')
-
-@app.route('/paintings/<int:id>/edit')
-def edit_painting(id):
-    if 'user_id' not in session:
-        return redirect('/logout')
-    painting_data = {
-        "id":id
-    }
-    data = {
-        "id":session['user_id']
-    }
-    g = Painting.get_painting(painting_data)
-    h = User.get_user(data)
-    return render_template("edit_painting.html",painting=g,user=h)
-
-@app.route('/update/<int:id>',methods=['POST'])
-def update(id):
-    if 'user_id' not in session:
-        return redirect('/logout')
-    if not Painting.validate_painting(request.form):
-        return redirect('/paintings/' + str(id) + '/edit')
-    data = {
-        "title": request.form["title"],
-        "description": request.form["description"],
-        "price": request.form["price"],
-        "id": id
-    }
-    Painting.update(data)
-    return redirect('/paintings')
+    Score.delete(data)
+    return redirect('/scores')

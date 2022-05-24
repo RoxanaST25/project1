@@ -1,56 +1,110 @@
 from flask_app.config.mysqlconnection import connectToMySQL
+from flask_app.models.user import User
 from flask import flash
 
 class Score:
     db = 'project_folder'
 
+
     def __init__(self,data):
         self.id = data['id']
         self.score = data['score']
-        self.user_id = data['user_id']
+        self.user_id = data['users_id']
         self.created_at = data['created_at']
         self.updated_at = data['updated_at']
+        self.user = User.get_user({"id": self.user_id})
 
     @classmethod
     def get_all(cls):
-        query = "SELECT * FROM paitings;"
+        query = "SELECT * FROM scores;"
         results =  connectToMySQL(cls.db).query_db(query)
-        paintings = []
+        scores = []
         for x in results:
-            paintings.append( cls(x) )
-        return paintings
+            scores.append( cls(x) )
+        return scores
         
     @classmethod
     def save(cls,data):
-        query = "INSERT INTO paintings (title, description, price, created_at, updated_at, painted_by, user_id) VALUES (%(title)s,%(description)s,%(price)s, NOW(), NOW(), %(painted_by)s,%(user_id)s);"
+        query = "INSERT INTO scores (score, created_at, updated_at, users_id) VALUES (%(score)s, NOW(), NOW(), %(users_id)s);"
         return connectToMySQL(cls.db).query_db(query, data)
     
     @classmethod
-    def get_painting(cls,data):
-        query = "SELECT * FROM paintings WHERE id = %(id)s;"
+    def get_scores(cls,data):
+        query = "SELECT * FROM scores WHERE id = %(id)s;"
         results = connectToMySQL(cls.db).query_db(query,data)
         return cls( results[0] )
 
-    @classmethod
-    def update(cls, data):
-        query = "UPDATE paintings SET title=%(title)s, description=%(description)s, price=%(price)s, updated_at=NOW() WHERE id = %(id)s;"
-        return connectToMySQL(cls.db).query_db(query,data)
     
     @classmethod
     def delete(cls,data):
-        query = "DELETE FROM paintings WHERE id = %(id)s;"
+        query = "DELETE FROM scores WHERE id = %(id)s;"
         return connectToMySQL(cls.db).query_db(query,data)
 
     @staticmethod
-    def validate_painting(painting):
+    def validate_option(option):
+        print(option)
         is_valid = True
-        if len(painting['title']) < 2:
+        if not option:
             is_valid = False
-            flash("Title must be at least 2 characters","painting")
-        if len(painting['description']) < 10:
+            flash("Select an answer","answer")
+        if len(option.keys()) > 1:
             is_valid = False
-            flash("Description must be at least 10 characters","painting")
-        if float(painting['price']) <= 0:
-            is_valid = False
-            flash("Please enter a price greater than 0","painting")
+            flash("Select only one answer","answer")
         return is_valid
+
+class QuestionList:
+    def __init__(self):
+        self.questions = [
+            Question(
+                "In what year were the first Air Jordan sneakers released?",
+                0,
+                [
+                    "1984",
+                    "2020",
+                    "1999"
+                ]
+            ),
+            Question(
+                "In a bingo game, which number is represented by the phrase “two little ducks”?",
+                1,
+                [
+                    "30",
+                    "22",
+                    "29"
+                ]
+            ),
+            Question(
+                "According to Greek mythology, who was the first woman on earth?",
+                2,
+                [
+                    "Alejandra",
+                    "Elizabeth",
+                    "Pandora"
+                ]
+            ),
+            Question(
+                "What is the loudest animal on Earth?",
+                0,
+                [
+                    "The sperm whale",
+                    "Bears",
+                    "Elephants"
+                ]
+            ),
+            Question(
+                "What was the first toy to be advertised on television?",
+                1,
+                [
+                    "Mickey Mouse",
+                    "Mr.Potato Head",
+                    "Transformers"
+                ]
+            )
+        ]
+
+class Question:
+    
+    def __init__(self, question, answer, options):
+        self.question = question
+        self.answer = answer
+        self.options = options
